@@ -1,0 +1,105 @@
+name: grbts
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'grbts/**'
+      - '.github/workflows/grbts.yml'
+  workflow_dispatch:
+    inputs:
+      latest:
+        description: 'tag latest?'
+        required: true
+        default: false
+        type: boolean
+      fecha:
+        description: 'date -> latest (YYYY-MM-DD)'
+        required: false
+        default: '2025-07-31'
+        type: string
+  schedule:
+    - cron: '31 13 21 * *' # minuto hora dia1-31 mes dia0-6
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+  packages: write
+jobs:
+  getdate:
+    runs-on: ubuntu-latest
+    outputs:
+      fecha: ${{ steps.setdate.outputs.fecha }}
+    steps:
+      - id: setdate
+        run: echo "fecha=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+  build:
+    if: ${{ (github.event_name == 'workflow_dispatch' && fromJSON(inputs.latest) != true) || github.event_name == 'schedule' || github.event_name == 'push' }}
+    needs: getdate
+    strategy:
+      matrix:
+        arch:
+          - runson: ubuntu-24.04
+            tagarch: x86_64
+            grbverx: '13.0'
+            grbfile: gurobi13.0.0_linux64.tar.gz
+          - runson: ubuntu-24.04-arm
+            tagarch: aarch64
+            grbverx: '13.0'
+            grbfile: gurobi13.0.0_armlinux64.tar.gz
+    runs-on: ${{ matrix.arch.runson }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          push: true
+          context: ./grbts
+          build-args: |
+            GRBVERX=${{ matrix.arch.grbverx }}
+            GRBFILE=${{ matrix.arch.grbfile }}
+          tags: ghcr.io/${{ github.repository_owner }}/lab0-container:grbts-${{ matrix.arch.tagarch }}-${{ needs.getdate.outputs.fecha }}
+  manifest:
+    if: ${{ (github.event_name == 'workflow_dispatch' && fromJSON(inputs.latest) != true) || github.event_name == 'schedule' || github.event_name == 'push' }}
+    needs: [getdate, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: |
+          set -ex
+          docker buildx imagetools inspect ghcr.io/${{ github.repository_owner }}/lab0-container:grbts-x86_64-${{ needs.getdate.outputs.fecha }}
+          docker buildx imagetools inspect ghcr.io/${{ github.repository_owner }}/lab0-container:grbts-aarch64-${{ needs.getdate.outputs.fecha }}
+          docker buildx imagetools create \
+            --tag ghcr.io/${{ github.repository_owner }}/lab0-container:grbts-${{ needs.getdate.outputs.fecha }} \
+            ghcr.io/${{ github.repository_owner }}/lab0-container:grbts-x86_64-${{ needs.getdate.outputs.fecha }} \
+            ghcr.io/${{ github.repository_owner }}/lab0-container:grbts-aarch64-${{ needs.getdate.outputs.fecha }}
+          docker buildx imagetools create \
+            --tag ghcr.io/${{ github.repository_owner }}/lab0-container:grbts \
+            ghcr.io/${{ github.repository_owner }}/lab0-container:grbts-${{ needs.getdate.outputs.fecha }}
+  latest:
+    if: ${{ (github.event_name == 'workflow_dispatch' && fromJSON(inputs.latest) == true) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: |
+          set -ex
+          docker buildx imagetools inspect ghcr.io/${{ github.repository_owner }}/lab0-container:grbts-${{ inputs.fecha }}
+          docker buildx imagetools create \
+            --tag ghcr.io/${{ github.repository_owner }}/lab0-container:grbts \
+            ghcr.io/${{ github.repository_owner }}/lab0-container:grbts-${{ inputs.fecha }}

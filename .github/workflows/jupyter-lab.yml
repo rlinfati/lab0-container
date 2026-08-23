@@ -1,0 +1,94 @@
+name: jupyter-lab
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'jupyter-lab/**'
+      - '.github/workflows/jupyter-lab.yml'
+      - '.github/workflows/jupyter-lab-build.yml'
+  workflow_dispatch:
+    inputs:
+      latest:
+        description: 'tag latest?'
+        required: true
+        default: false
+        type: boolean
+      fecha:
+        description: 'date -> latest (YYYY-MM-DD)'
+        required: true
+        default: '2025-07-31'
+        type: string
+      apps:
+        description: 'base/devcpp/anaconda/julia/juliacuda'
+        required: true
+        default: 'julia'
+        type: string
+      vers:
+        description: 'version'
+        required: true
+        default: '1.10'
+        type: string
+  schedule:
+    - cron: '31 13 21 * *' # minuto hora dia1-31 mes dia0-6
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+  packages: write
+jobs:
+  getdate:
+    runs-on: ubuntu-latest
+    outputs:
+      fecha: ${{ steps.setdate.outputs.fecha }}
+    steps:
+      - id: setdate
+        run: echo "fecha=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+  buildbase:
+    if: ${{ (github.event_name == 'workflow_dispatch' && fromJSON(inputs.latest) != true) || github.event_name == 'schedule' || github.event_name == 'push' }}
+    needs: getdate
+    uses: ./.github/workflows/jupyter-lab-build.yml
+    with:
+      apps: "base"
+      vers: "latest"
+      fecha: ${{ needs.getdate.outputs.fecha }}
+  build:
+    if: ${{ (github.event_name == 'workflow_dispatch' && fromJSON(inputs.latest) != true) || github.event_name == 'schedule' || github.event_name == 'push' }}
+    strategy:
+      matrix:
+        config:
+          - apps: "devcpp"
+            vers: "latest"
+          - apps: "anaconda"
+            vers: "latest"
+          - apps: "julia"
+            vers: "1.10"
+          - apps: "juliacuda"
+            vers: "1.10"
+          - apps: "julia"
+            vers: "1.12"
+          - apps: "julia"
+            vers: "1.13"
+    needs: [getdate, buildbase]
+    uses: ./.github/workflows/jupyter-lab-build.yml
+    with:
+      apps:  ${{ matrix.config.apps }}
+      vers:  ${{ matrix.config.vers }}
+      fecha: ${{ needs.getdate.outputs.fecha }}
+  latest:
+    if: ${{ (github.event_name == 'workflow_dispatch' && fromJSON(inputs.latest) == true) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: |
+          set -ex
+          docker buildx imagetools inspect ghcr.io/${{ github.repository_owner }}/lab0-container:jupyter-lab-${{ inputs.apps }}-${{ inputs.vers }}-${{ inputs.fecha }}
+          docker buildx imagetools create \
+            --tag ghcr.io/${{ github.repository_owner }}/lab0-container:jupyter-lab-${{ inputs.apps }}-${{ inputs.vers }} \
+            ghcr.io/${{ github.repository_owner }}/lab0-container:jupyter-lab-${{ inputs.apps }}-${{ inputs.vers }}-${{ inputs.fecha }}

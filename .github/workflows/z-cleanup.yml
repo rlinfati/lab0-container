@@ -1,0 +1,29 @@
+name: z-cleanup
+on:
+  workflow_dispatch:
+    inputs:
+      contains:
+        description: 'date -> latest (YYYY-MM-DD)'
+        required: false
+        default: ''
+        type: string
+  schedule:
+    - cron: '31 13 * * 0' # minuto hora dia1-31 mes dia0-6
+permissions:
+  packages: write
+jobs:
+  cleanup-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: dataaxiom/ghcr-cleanup-action@v1
+        with:
+          delete-tags: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.contains != '') && format('**{0}**', github.event.inputs.contains) || '**x86_64**,**aarch64**' }}
+      - uses: dataaxiom/ghcr-cleanup-action@v1
+        with:
+          delete-untagged: true
+          delete-ghost-images: true
+          delete-partial-images: true
+      - uses: dataaxiom/ghcr-cleanup-action@v1
+        with:
+          dry-run: true
+          validate: true
