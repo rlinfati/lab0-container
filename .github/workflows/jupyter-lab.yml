@@ -70,6 +70,8 @@ jobs:
             vers: "1.12"
           - apps: "julia"
             vers: "1.13"
+          - apps: "julia"
+            vers: "1.14"
     needs: [getdate, buildbase]
     uses: ./.github/workflows/jupyter-lab-build.yml
     with:

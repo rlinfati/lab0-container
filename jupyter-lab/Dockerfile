@@ -79,8 +79,8 @@ WORKDIR /tmp/
 ## CPU_TARGET="generic;sandybridge,-xsaveopt,clone_all;haswell,-rdrnd,base(1);x86-64-v4,-rdrnd,base(1)"
 
 ARG JULIA_CPU_TARGET=native
-ARG JULIA_VERSION=1.12
-# FIX: JULIA_VERSION=1.12
+ARG JULIA_VERSION=1.13
+# FIX: JULIA_VERSION=1.13
 
 RUN if [ "x${JULIA_VERSION}" = "xnightly" ]; then \
         JULIA_URL=https://julialangnightlies-s3.julialang.org/bin/linux/$(uname -m) ;\

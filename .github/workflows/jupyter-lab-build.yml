@@ -33,7 +33,7 @@ permissions:
   packages: write
 jobs:
   build:
-    continue-on-error: ${{ inputs.apps == 'julia' && inputs.vers == '1.13' }}
+    continue-on-error: ${{ inputs.apps == 'julia' && inputs.vers == '1.14' }}
     strategy:
       matrix:
         arch:
@@ -67,7 +67,7 @@ jobs:
           cache-from: type=gha,scope=jupyter-lab-build-${{ matrix.arch.tagarch }}
           cache-to:   ${{ inputs.apps == 'base' && format('type=gha,scope=jupyter-lab-build-{0}', matrix.arch.tagarch) || '' }}
   manifest:
-    continue-on-error: ${{ inputs.apps == 'julia' && inputs.vers == '1.13' }}
+    continue-on-error: ${{ inputs.apps == 'julia' && inputs.vers == '1.14' }}
     needs: build
     runs-on: ubuntu-latest
     steps:
