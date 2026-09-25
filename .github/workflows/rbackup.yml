@@ -42,13 +42,13 @@ jobs:
         arch:
           - runson: ubuntu-24.04
             tagarch: x86_64
-            rclonever: v1.75.0
+            rclonever: v1.75.1
             rclonemac: amd64
             ffmpegver: "9.0"
             ffmpegmac: linux64
           - runson: ubuntu-24.04-arm
             tagarch: aarch64
-            rclonever: v1.75.0
+            rclonever: v1.75.1
             rclonemac: arm64
             ffmpegver: "9.0"
             ffmpegmac: linuxarm64

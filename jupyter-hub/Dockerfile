@@ -6,7 +6,7 @@ WORKDIR /tmp/
 ENV PATH=$PATH:/opt/conda/bin/
 ARG CONDA_PLUGINS_AUTO_ACCEPT_TOS=true
 
-RUN curl --remote-name https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-$(uname -m).sh && \
+RUN curl --fail --location --remote-name https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-$(uname -m).sh && \
     bash Miniconda3-latest-Linux-$(uname -m).sh -b -p /opt/conda && \
     rm Miniconda3-latest-Linux-$(uname -m).sh && \
     conda clean --all --yes && \

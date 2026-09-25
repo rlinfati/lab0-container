@@ -9,7 +9,7 @@ on:
         type: string
       vers:
         description: 'vers'
-        default: '1.12'
+        default: '1.10'
         required: true
         type: string
       fecha:

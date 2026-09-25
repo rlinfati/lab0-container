@@ -15,7 +15,7 @@ WORKDIR /tmp/
 RUN microdnf --assumeyes install tar gzip && \
     microdnf clean all
 
-RUN curl -O https://packages.gurobi.com/${GRBVERX}/${GRBFILE} && \
+RUN curl --fail --location --remote-name https://packages.gurobi.com/${GRBVERX}/${GRBFILE} && \
     tar xf ${GRBFILE} -C /opt && \
     cp /opt/gurobi*/*/bin/{grb_ts,grbgetkey,grbprobe} /usr/local/bin && \
     ls -la /opt/gurobi*/*/bin/ && \
@@ -38,4 +38,5 @@ COPY --from=stage1 /usr/local/bin/grbgetkey         /usr/local/bin/grbgetkey
 COPY --from=stage1 /usr/local/bin/grbprobe          /usr/local/bin/grbprobe
 COPY --from=stage1 /etc/pki/tls/certs/ca-bundle.crt /etc/pki/tls/certs/ca-bundle.crt
 
-CMD grbprobe && cat /opt/gurobi/gurobi.lic && grb_ts -v -n || tail -f /dev/null
+ENTRYPOINT ["grb_ts"]
+CMD ["-v", "-n"]

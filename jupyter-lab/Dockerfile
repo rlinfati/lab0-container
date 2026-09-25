@@ -18,7 +18,7 @@ RUN microdnf --assumeyes install git-core && \
     microdnf --assumeyes install procps-ng && \
     microdnf clean all
 
-RUN curl --remote-name https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-$(uname -m).sh && \
+RUN curl --fail --location --remote-name https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-$(uname -m).sh && \
     bash Miniconda3-latest-Linux-$(uname -m).sh -b -p /opt/conda && \
     rm Miniconda3-latest-Linux-$(uname -m).sh && \
     conda clean --all --yes && \
@@ -31,7 +31,7 @@ RUN conda install --quiet --yes jupyterlab jupyterhub-singleuser nb_conda_kernel
 
 EXPOSE 8888/tcp
 ENTRYPOINT ["jupyterhub-singleuser"]
-CMD [""]
+CMD []
 
 RUN useradd --create-home --no-user-group jovyan
 VOLUME /home/jovyan/work
@@ -95,7 +95,7 @@ RUN if [ "x${JULIA_VERSION}" = "xnightly" ]; then \
     fi && \
     mkdir /opt/julia-${JULIA_VERSION} && \
     echo ${JULIA_URL}/${JULIA_FILE} && \
-    curl --location --remote-name ${JULIA_URL}/${JULIA_FILE} && \
+    curl --fail --location --remote-name ${JULIA_URL}/${JULIA_FILE} && \
     tar xzf ${JULIA_FILE} -C /opt/julia-${JULIA_VERSION} --strip-components=1 && \
     rm ${JULIA_FILE} && \
     ln --symbolic /opt/julia-${JULIA_VERSION}/bin/julia /usr/local/bin/julia && \
