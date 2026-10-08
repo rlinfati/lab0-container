@@ -5,14 +5,14 @@ set -ex
 export CONDA_PKGS_DIRS=$HOME/.orlibs/pkgsx/
 conda create --quiet --yes --prefix $HOME/.orlibs/pycpx --no-deps ibmdecisionoptimization::cplex && \
 conda create --quiet --yes --prefix $HOME/.orlibs/pygrb --no-deps gurobi::gurobi && \
-conda create --quiet --yes --prefix $HOME/.orlibs/pyxpr --no-deps fico-xpress::xpress=9.8 fico-xpress::xpresslibs=9.8 && \
+conda create --quiet --yes --prefix $HOME/.orlibs/pyxpr --no-deps fico-xpress::xpress=9.9 fico-xpress::xpresslibs=9.9 && \
 conda clean --all --yes && \
 find $HOME/.orlibs/pycpx/ -type f -name libcplex\*   -ls && \
 find $HOME/.orlibs/pygrb/ -type f -name libgurobi\*  -ls && \
 find $HOME/.orlibs/pyxpr/ -type f -name libxprs.\*   -ls && \
 find $HOME/.orlibs/pyxpr/ -type f -name libxprl\*    -ls && \
 find $HOME/.orlibs/pyxpr/ -type f -name \*xpauth.xpr -ls
-# FIX: fico-xpress::xpress=9.8
+# FIX: fico-xpress::xpress=9.9
 
 conda create --quiet --yes --prefix $HOME/.orlibs/pypip python && \
 $HOME/.orlibs/pypip/bin/python -m pip --no-cache-dir install amplpy --upgrade && \
@@ -35,18 +35,18 @@ ln -sf $HOME/.orlibs  $HOME/.orlibs/bin && \
 find $HOME/.orlibs/pycpx/ -type f -name libcplex\*      -ls -exec cp {} $HOME/.orlibs/ \; && \
 find $HOME/.orlibs/pygrb/ -type f -name libgurobi\*     -ls -exec cp {} $HOME/.orlibs/ \; && \
 find $HOME/.orlibs/pyxpr/ -type f -name libxprs.\*      -ls -exec cp {} $HOME/.orlibs/libxprs.$SYSEXT \; && \
-find $HOME/.orlibs/pyxpr/ -type f -name libxprl\*       -ls -exec cp {} $HOME/.orlibs/libxprl.$SYSEXT.x9.8 \; && \
+find $HOME/.orlibs/pyxpr/ -type f -name libxprl\*       -ls -exec cp {} $HOME/.orlibs/libxprl.$SYSEXT.x9.9 \; && \
 find $HOME/.orlibs/pyxpr/ -type f -name \*xpauth.xpr    -ls -exec cp {} $HOME/.orlibs/xpauth.xpr \;
 
 if [ "$(uname -s)" = "Darwin" ]; then
-    mv $HOME/.orlibs/libxprl.$SYSEXT.x9.8 $HOME/.orlibs/libxprl.$SYSEXT
+    mv $HOME/.orlibs/libxprl.$SYSEXT.x9.9 $HOME/.orlibs/libxprl.$SYSEXT
     codesign --display --verify --verbose -d $HOME/.orlibs/libcplex*  || true
     codesign --display --verify --verbose -d $HOME/.orlibs/libgurobi* || true
     codesign --display --verify --verbose -d $HOME/.orlibs/libxprs*   || true
     codesign --display --verify --verbose -d $HOME/.orlibs/libxprl*   || true
     if [ "$(uname -m)" = "x86_64" ]; then
-        codesign --remove-signature $HOME/.orlibs/libcplex*            || true
-        codesign --remove-signature $HOME/.orlibs/libgurobi*           || true
+        codesign --remove-signature $HOME/.orlibs/libcplex*           || true
+        codesign --remove-signature $HOME/.orlibs/libgurobi*          || true
     else true; fi
 else true; fi
 
@@ -57,7 +57,7 @@ conda remove --quiet --yes --prefix $HOME/.orlibs/pypip --all && \
 conda clean --all --yes && \
 rm -r $HOME/.orlibs/pkgsx/ && \
 find $HOME/.orlibs/
-# FIX: libxprl.$SYSEXT.x9.8
+# FIX: libxprl.$SYSEXT.x9.9
 
 julia --eval "using InteractiveUtils; versioninfo(); @ccall jl_dump_host_cpu()::Cvoid" && \
 julia --threads auto --eval "import Pkg; Pkg.add(\"MathOptInterface\")"

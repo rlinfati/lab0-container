@@ -63,6 +63,9 @@ WORKDIR /home/jovyan/
 FROM base AS anaconda
 
 RUN conda create --quiet --yes --name Anaconda anaconda && \
+    conda install --name Anaconda --yes gurobi::gurobi && \
+    conda install --name Anaconda --yes ibmdecisionoptimization::cplex && \
+    conda install --name Anaconda --yes fico-xpress::xpress && \
     conda clean --all --yes
 
 ###############
