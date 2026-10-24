@@ -1,0 +1,35 @@
+name: jupyter-hub
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/_image.yml'
+      - '.github/workflows/jupyter-hub.yml'
+      - 'jupyter-hub/**'
+  workflow_dispatch:
+    inputs:
+      retag:
+        description: 'retag an existing image as latest (no build)'
+        required: true
+        default: false
+        type: boolean
+      date:
+        description: 'date tag (YYYY-MM-DD) of the image to promote to latest, only with retag'
+        required: false
+        default: '2025-07-31'
+        type: string
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+  packages: write
+jobs:
+  image:
+    uses: ./.github/workflows/_image.yml
+    with:
+      image: jupyter-hub
+      context: ./jupyter-hub
+      retag: ${{ github.event_name == 'workflow_dispatch' && inputs.retag }}
+      date: ${{ inputs.date }}

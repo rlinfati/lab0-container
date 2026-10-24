@@ -1,0 +1,101 @@
+name: jupyter-lab
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/_image.yml'
+      - '.github/workflows/jupyter-lab.yml'
+      - 'jupyter-lab/**'
+  workflow_dispatch:
+    inputs:
+      retag:
+        description: 'retag an existing image as latest (no build)'
+        required: true
+        default: false
+        type: boolean
+      date:
+        description: 'date tag (YYYY-MM-DD) of the image to promote to latest, only with retag'
+        required: false
+        default: '2025-07-31'
+        type: string
+      target:
+        description: 'Dockerfile target: base/devcpp/anaconda/julia/juliacuda (empty = all)'
+        required: false
+        default: ''
+        type: string
+      julia_version:
+        description: 'Julia version, or latest for non-julia targets (empty = all)'
+        required: false
+        default: ''
+        type: string
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+  packages: write
+jobs:
+  plan:
+    ## build the matrix of (target, julia_version) images, optionally filtered by dispatch inputs
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.retag) }}
+    runs-on: ubuntu-slim
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - id: matrix
+        env:
+          TARGET: ${{ inputs.target }}
+          JULIA_VERSION: ${{ inputs.julia_version }}
+        run: |
+          set -ex
+          MATRIX=$(jq -cn --arg target "$TARGET" --arg julia_version "$JULIA_VERSION" '
+            [ {target: "base",      julia_version: "latest"},
+              {target: "devcpp",    julia_version: "latest"},
+              {target: "anaconda",  julia_version: "latest"},
+              {target: "julia",     julia_version: "1.10"},
+              {target: "juliacuda", julia_version: "1.10"},
+              {target: "julia",     julia_version: "1.12"},
+              {target: "julia",     julia_version: "1.13"},
+              {target: "julia",     julia_version: "1.14", experimental: true}
+            ]
+            | map(. + {experimental: (.experimental // false)})
+            | map(select(($target == "" or .target == $target) and ($julia_version == "" or .julia_version == $julia_version)))
+            | map(. + {args: "TARGET=\(.target)\nJULIA_VERSION=\(.julia_version)"})
+            | {include: .}')
+          echo "$MATRIX" | jq -e '.include | length > 0'
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+  build:
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    uses: ./.github/workflows/_image.yml
+    with:
+      image: jupyter-lab-${{ matrix.target }}-${{ matrix.julia_version }}
+      context: ./jupyter-lab
+      build-args: ${{ matrix.args }}
+      ## per-arch JULIA_CPU_TARGET, from:
+      ## https://github.com/JuliaCI/julia-buildkite/blob/main/utilities/build_envs.sh
+      ## CPU_TARGET="generic;cortex-a76,clone_all"
+      ## CPU_TARGET="generic;sandybridge,-xsaveopt,clone_all;haswell,-rdrnd,base(1);x86-64-v4,-rdrnd,base(1)"
+      build-args-x86_64: |
+        JULIA_CPU_TARGET=generic;sandybridge,-xsaveopt,clone_all;haswell,-rdrnd,base(1);x86-64-v4,-rdrnd,base(1)
+      build-args-aarch64: |
+        JULIA_CPU_TARGET=generic;cortex-a76,clone_all
+      continue-on-error: ${{ matrix.experimental }}
+  check-retag:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.retag && (inputs.target == '' || inputs.julia_version == '') }}
+    runs-on: ubuntu-slim
+    steps:
+      - run: |
+          echo "::error::retag needs both target and julia_version"
+          exit 1
+  retag:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.retag && inputs.target != '' && inputs.julia_version != '' }}
+    uses: ./.github/workflows/_image.yml
+    with:
+      image: jupyter-lab-${{ inputs.target }}-${{ inputs.julia_version }}
+      context: ./jupyter-lab
+      retag: true
+      date: ${{ inputs.date }}
