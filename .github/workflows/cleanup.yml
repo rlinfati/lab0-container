@@ -1,0 +1,34 @@
+name: cleanup
+on:
+  workflow_dispatch:
+    inputs:
+      contains:
+        description: 'delete tags containing this text (empty = arch tags x86_64/aarch64)'
+        required: false
+        default: ''
+        type: string
+  schedule:
+    - cron: '12 12 * * 0' # min hour day-of-month month day-of-week: Sundays 12:12 UTC
+permissions:
+  packages: write
+jobs:
+  cleanup-tag:
+    runs-on: ubuntu-slim
+    steps:
+      - name: delete per-arch tags (scheduled runs only older than 1 day)
+        uses: dataaxiom/ghcr-cleanup-action@v1
+        with:
+          older-than: ${{ github.event_name == 'schedule' && '1 day' || '' }}
+          delete-tags: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.contains != '') && format('**{0}**', github.event.inputs.contains) || '**x86_64**,**aarch64**' }}
+      - name: delete untagged, ghost and partial images
+        uses: dataaxiom/ghcr-cleanup-action@v1
+        with:
+          older-than: ${{ github.event_name == 'schedule' && '1 day' || '' }}
+          delete-untagged: true
+          delete-ghost-images: true
+          delete-partial-images: true
+      - name: validate registry (dry-run)
+        uses: dataaxiom/ghcr-cleanup-action@v1
+        with:
+          dry-run: true
+          validate: true

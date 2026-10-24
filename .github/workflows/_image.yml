@@ -1,0 +1,130 @@
+## Reusable workflow: build one image per architecture, then publish manifests.
+## Tags: <image>-<arch>-<date> (per arch) -> <image>-<date> (multi-arch) -> <image> (latest)
+name: _image
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: 'image name, used as tag prefix (vlmcsd, grbts, ...)'
+        required: true
+        type: string
+      context:
+        description: 'docker build context (./vlmcsd)'
+        required: true
+        type: string
+      build-args:
+        description: 'build-args for both architectures (one KEY=VALUE per line)'
+        required: false
+        default: ''
+        type: string
+      build-args-x86_64:
+        description: 'build-args only for x86_64'
+        required: false
+        default: ''
+        type: string
+      build-args-aarch64:
+        description: 'build-args only for aarch64'
+        required: false
+        default: ''
+        type: string
+      continue-on-error:
+        description: 'build and manifest may fail without failing the workflow'
+        required: false
+        default: false
+        type: boolean
+      retag:
+        description: 'only retag <image>-<date> as latest (no build)'
+        required: false
+        default: false
+        type: boolean
+      date:
+        description: 'date tag (YYYY-MM-DD) of the image to promote to latest, only with retag'
+        required: false
+        default: ''
+        type: string
+permissions:
+  contents: read
+  packages: write
+env:
+  IMAGE_REPO: ghcr.io/${{ github.repository_owner }}/lab0-container
+  IMAGE_NAME: ${{ inputs.image }}
+jobs:
+  get-date:
+    if: ${{ !inputs.retag }}
+    runs-on: ubuntu-slim
+    outputs:
+      date: ${{ steps.set-date.outputs.date }}
+    steps:
+      - run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+        id: set-date
+  build:
+    if: ${{ !inputs.retag }}
+    continue-on-error: ${{ inputs.continue-on-error }}
+    needs: get-date
+    strategy:
+      matrix:
+        platform:
+          - runner: ubuntu-26.04
+            arch: x86_64
+            build-args: ${{ inputs.build-args-x86_64 }}
+          - runner: ubuntu-26.04-arm
+            arch: aarch64
+            build-args: ${{ inputs.build-args-aarch64 }}
+    runs-on: ${{ matrix.platform.runner }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v7
+        with:
+          push: true
+          context: ${{ inputs.context }}
+          build-args: |
+            ${{ inputs.build-args }}
+            ${{ matrix.platform.build-args }}
+          tags: ${{ env.IMAGE_REPO }}:${{ env.IMAGE_NAME }}-${{ matrix.platform.arch }}-${{ needs.get-date.outputs.date }}
+  manifest:
+    if: ${{ !inputs.retag }}
+    continue-on-error: ${{ inputs.continue-on-error }}
+    needs: [get-date, build]
+    runs-on: ubuntu-slim
+    env:
+      TAG_DATE: ${{ needs.get-date.outputs.date }}
+    steps:
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: |
+          set -ex
+          docker buildx imagetools inspect ${IMAGE_REPO}:${IMAGE_NAME}-x86_64-${TAG_DATE}
+          docker buildx imagetools inspect ${IMAGE_REPO}:${IMAGE_NAME}-aarch64-${TAG_DATE}
+          docker buildx imagetools create \
+            --tag ${IMAGE_REPO}:${IMAGE_NAME}-${TAG_DATE} \
+            ${IMAGE_REPO}:${IMAGE_NAME}-x86_64-${TAG_DATE} \
+            ${IMAGE_REPO}:${IMAGE_NAME}-aarch64-${TAG_DATE}
+          docker buildx imagetools create \
+            --tag ${IMAGE_REPO}:${IMAGE_NAME} \
+            ${IMAGE_REPO}:${IMAGE_NAME}-${TAG_DATE}
+  retag:
+    if: ${{ inputs.retag }}
+    runs-on: ubuntu-slim
+    env:
+      TAG_DATE: ${{ inputs.date }}
+    steps:
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: |
+          set -ex
+          docker buildx imagetools inspect ${IMAGE_REPO}:${IMAGE_NAME}-${TAG_DATE}
+          docker buildx imagetools create \
+            --tag ${IMAGE_REPO}:${IMAGE_NAME} \
+            ${IMAGE_REPO}:${IMAGE_NAME}-${TAG_DATE}
