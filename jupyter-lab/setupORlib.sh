@@ -2,12 +2,22 @@
 
 set -ex
 
+if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "x86_64" ]; then
+    XPRESS_VER=${XPRESS_VER:-9.8}
+    GUROBI_VER=${GUROBI_VER:-13.0}
+    CPLEX_VER=${CPLEX_VER:-22.1}
+else true; fi
+
 # renovate: datasource=conda depName=fico-xpress/xpress extractVersion=^(?<version>\d+\.\d+)(?:\.\d+)?$
 XPRESS_VER=${XPRESS_VER:-9.9}
+# renovate: datasource=conda depName=gurobi/gurobi extractVersion=^(?<version>\d+\.\d+)(?:\.\d+)?$
+GUROBI_VER=${GUROBI_VER:-13.0}
+# renovate: datasource=conda depName=ibmdecisionoptimization/cplex extractVersion=^(?<version>\d+\.\d+)(?:\.\d+)*$
+CPLEX_VER=${CPLEX_VER:-22.2}
 
 export CONDA_PKGS_DIRS=$HOME/.orlibs/pkgsx/
-conda create --quiet --yes --prefix $HOME/.orlibs/pycpx --no-deps ibmdecisionoptimization::cplex
-conda create --quiet --yes --prefix $HOME/.orlibs/pygrb --no-deps gurobi::gurobi
+conda create --quiet --yes --prefix $HOME/.orlibs/pycpx --no-deps ibmdecisionoptimization::cplex=${CPLEX_VER}
+conda create --quiet --yes --prefix $HOME/.orlibs/pygrb --no-deps gurobi::gurobi=${GUROBI_VER}
 conda create --quiet --yes --prefix $HOME/.orlibs/pyxpr --no-deps fico-xpress::xpress=${XPRESS_VER} fico-xpress::xpresslibs=${XPRESS_VER}
 conda clean --all --yes
 find $HOME/.orlibs/pycpx/ -type f -name libcplex\*   -ls
